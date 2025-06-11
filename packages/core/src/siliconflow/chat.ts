@@ -6,11 +6,21 @@ import * as fs from "fs/promises"; // 添加文件系统模块
 import * as path from "path"; // 添加路径处理模块
 import { tryResolve } from "@axiomai/utils";
 import { WORKSPACE_ROOT } from "../tokens";
+import "../tools/index";
+import { createTools, runFunctionTool } from "../decorator";
+import { from, of, Subject, tap } from "rxjs";
+import { concatMap, map, switchMap, toArray } from "rxjs/operators";
 export interface SiliconflowChatMessage {
   role: string;
   content: string;
+  tool_call_id?: string;
 }
-
+export interface SiliconflowChatFunctionCall {
+  index: number;
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
 @injectable()
 export class SiliconflowChat {
   private conversationHistory: SiliconflowChatMessage[] = [];
@@ -28,13 +38,18 @@ export class SiliconflowChat {
         max_token: 16384,
         temperature: 0.7,
         stream: true,
+        tools: createTools(),
       },
     });
     return response.data;
   }
 
-  addMessage(role: string, content: string) {
-    this.conversationHistory.push({ role, content });
+  addMessage(role: string, content: string, tool_call_id?: string) {
+    if (tool_call_id) {
+      this.conversationHistory.push({ role, content, tool_call_id });
+    } else {
+      this.conversationHistory.push({ role, content });
+    }
   }
 
   getHistory() {
@@ -83,9 +98,10 @@ export class SiliconflowChat {
     console.log(
       "开始聊天会话。输入“exit”结束会话，输入“clear”清除对话记录，输入“save”保存为Markdown。"
     );
+    const root = tryResolve(WORKSPACE_ROOT) || process.cwd();
 
-    this.addMessage("system", "你是杨明明的私人的AI助手");
-
+    this.addMessage("system", "你是杨明明的私人的AI助手，并用中文回答用户问题");
+    this.addMessage("system", `WORKSPACE_ROOT: ${root}`);
     rl.prompt();
 
     rl.on("line", async (input) => {
@@ -119,8 +135,58 @@ export class SiliconflowChat {
       rl.pause();
       try {
         const aiResponse: ReadStream = await this.chat(this.getHistory());
+        const reasoning_content_subject: Subject<string> = new Subject();
+        const content_subject: Subject<string> = new Subject();
+        const tool_calls_subject: Subject<SiliconflowChatFunctionCall> =
+          new Subject();
+        reasoning_content_subject
+          .pipe(tap((r) => process.stdout.write(r)))
+          .subscribe();
 
-        let fullContent = "";
+        content_subject.pipe(tap((r) => process.stdout.write(r))).subscribe();
+        content_subject
+          .pipe(
+            toArray(),
+            map((its) => its.flat().join("")),
+            tap((msg) => this.addMessage("assistant", msg))
+          )
+          .subscribe();
+        // tool call
+        tool_calls_subject
+          .pipe(
+            toArray(),
+            switchMap((calls) => {
+              const function_calls = calls.flat().flat();
+              const functions: Map<string, SiliconflowChatFunctionCall> =
+                new Map();
+              function_calls.map((it) => {
+                const fun = functions.get(it.id);
+                if (fun) {
+                  if (it.function) {
+                    if (it.function.name) {
+                      fun.function.name = it.function.name;
+                    }
+                    if (it.function.arguments) {
+                      fun.function.arguments = it.function.arguments;
+                    }
+                  }
+                } else {
+                  functions.set(it.id, it);
+                }
+              });
+              return from(functions.values());
+            }),
+            concatMap((it) => {
+              return from(runFunctionTool(it));
+            }),
+            map((it) => {
+              if (it) {
+                this.addMessage(`tool`, JSON.stringify(it.content), it.id);
+              }
+              return it;
+            })
+          )
+          .subscribe();
         aiResponse.on("data", (chunk) => {
           const chunkStr = chunk.toString();
           const lines = chunkStr
@@ -135,17 +201,17 @@ export class SiliconflowChat {
               try {
                 const json = JSON.parse(eventData);
                 const reasoning_content =
-                  json.choices[0]?.delta?.reasoning_content || "";
-                const content = json.choices[0]?.delta?.content || "";
-                if (!(reasoning_content || content)) {
-                  process.stdout.write(`\n`);
-                }
+                  json.choices[0]?.delta?.reasoning_content;
                 if (reasoning_content) {
-                  process.stdout.write(reasoning_content);
+                  reasoning_content_subject.next(reasoning_content);
                 }
+                const content = json.choices[0]?.delta?.content;
                 if (content) {
-                  fullContent += content;
-                  process.stdout.write(content);
+                  content_subject.next(content);
+                }
+                const tool_calls = json.choices[0]?.delta?.tool_calls;
+                if (tool_calls) {
+                  tool_calls_subject.next(tool_calls);
                 }
               } catch (err) {
                 console.error("\nError parsing JSON:", err);
@@ -154,13 +220,17 @@ export class SiliconflowChat {
           }
         });
         aiResponse.on("end", () => {
-          this.addMessage("assistant", fullContent);
+          reasoning_content_subject.complete();
+          content_subject.complete();
+          tool_calls_subject.complete();
           console.log("\n");
           rl.resume();
           rl.prompt();
         });
         aiResponse.on("error", (err) => {
-          console.error("\nStream error:", err);
+          reasoning_content_subject.error(err);
+          content_subject.error(err);
+          tool_calls_subject.error(err);
           rl.resume();
           rl.prompt();
         });

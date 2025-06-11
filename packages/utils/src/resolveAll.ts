@@ -21,3 +21,11 @@ export const tryResolve = <T>(
     return null;
   }
 };
+
+export const tryJsonParse = <T>(str: string) => {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return null;
+  }
+};
