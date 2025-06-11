@@ -6,10 +6,10 @@ export interface FileContent {
   content: string;
 }
 @Tool({
-  description: `读取文件内容`,
+  description: `读取指定文件的内容。当需要获取文件内容时使用此工具。`,
 })
 export class ReadFile implements Tool<FileContent[]> {
-  @Input({ description: "文件路径", typeFactory: () => String })
+  @Input({ description: "要读取的文件路径", typeFactory: () => `string` })
   filePath: string;
 
   async run() {

@@ -1,12 +1,26 @@
 import "reflect-metadata";
-import { container, WORKSPACE_ROOT, SiliconflowChat } from "@axiomai/core";
 import { config } from "dotenv";
+config();
+
+import {
+  container,
+  WORKSPACE_ROOT,
+  SiliconflowChat,
+  SiliconflowChatCli,
+} from "@axiomai/core";
+
+container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
+
 async function main() {
-  config();
-  container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
-  const chat = container.resolve(SiliconflowChat);
-  await chat.startCLI();
+  const chat = container.resolve(SiliconflowChatCli);
+  await chat.start();
 }
+
 main().catch((e) => {
-  console.error(e);
+  console.error("Application failed:", {
+    message: e.message,
+    stack: e.stack,
+    timestamp: new Date().toISOString(),
+  });
+  process.exit(1);
 });

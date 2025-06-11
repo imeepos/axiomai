@@ -1,4 +1,9 @@
-import { container, DependencyContainer, InjectionToken } from "tsyringe";
+import {
+  container,
+  DependencyContainer,
+  injectable,
+  InjectionToken,
+} from "tsyringe";
 import { Type } from "./types";
 import { resolveAll, tryJsonParse } from "@axiomai/utils";
 export interface ToolMetadata<T = any> {
@@ -21,7 +26,7 @@ export const Tool = (options: ToolOptions): ClassDecorator => {
     options.name = options.name || target.name;
     container.register(TOOL_TOKEN, { useValue: { target, options } });
     const type = target as any as Type<any>;
-    container.register(type, { useClass: type });
+    injectable()(type);
   };
 };
 export interface InputTypeFactory {

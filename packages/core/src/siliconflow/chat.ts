@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import { Siliconflow } from "./siliconflow";
-import * as readline from "readline";
 import { ReadStream } from "fs";
 import * as fs from "fs/promises"; // 添加文件系统模块
 import * as path from "path"; // 添加路径处理模块
@@ -8,8 +7,24 @@ import { tryResolve } from "@axiomai/utils";
 import { WORKSPACE_ROOT } from "../tokens";
 import "../tools/index";
 import { createTools, runFunctionTool } from "../decorator";
-import { from, of, Subject, tap } from "rxjs";
-import { concatMap, map, switchMap, toArray } from "rxjs/operators";
+import {
+  concat,
+  from,
+  lastValueFrom,
+  merge,
+  Observable,
+  of,
+  Subject,
+  tap,
+} from "rxjs";
+import {
+  concatMap,
+  endWith,
+  filter,
+  map,
+  switchMap,
+  toArray,
+} from "rxjs/operators";
 export interface SiliconflowChatMessage {
   role: string;
   content: string;
@@ -87,161 +102,144 @@ export class SiliconflowChat {
 
     return md;
   }
+  private processChunk(
+    chunk: Buffer | string,
+    subject: Subject<{
+      reasoning_content?: string;
+      content?: string;
+      tool_calls?: SiliconflowChatFunctionCall[];
+    }>
+  ) {
+    const chunkStr = chunk.toString();
+    const lines = chunkStr.split("\n").filter((line) => line.trim() !== "");
 
-  async startCLI() {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: "杨明明> ",
-    });
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
 
-    console.log(
-      "开始聊天会话。输入“exit”结束会话，输入“clear”清除对话记录，输入“save”保存为Markdown。"
-    );
-    const root = tryResolve(WORKSPACE_ROOT) || process.cwd();
+      const eventData = line.substring(6);
+      if (eventData === "[DONE]") return;
 
-    this.addMessage("system", "你是杨明明的私人的AI助手，并用中文回答用户问题");
-    this.addMessage("system", `WORKSPACE_ROOT: ${root}`);
-    rl.prompt();
-
-    rl.on("line", async (input) => {
-      if (input.toLowerCase() === "exit") {
-        rl.close();
-        return;
-      }
-
-      if (input.toLowerCase() === "clear") {
-        this.clearHistory();
-        console.log("对话记录已清除。\n");
-        rl.prompt();
-        return;
-      }
-
-      // 新增：保存命令处理
-      if (input.toLowerCase().startsWith("save")) {
-        const filename = input.split(" ")[1] || undefined;
-        try {
-          const savedPath = await this.saveToMarkdown(filename);
-          console.log(`\n聊天记录已保存至: ${savedPath}\n`);
-        } catch (error) {
-          console.error(`\n保存失败: ${(error as Error).message}\n`);
-        }
-        rl.prompt();
-        return;
-      }
-
-      this.addMessage("user", input);
-
-      rl.pause();
       try {
-        const aiResponse: ReadStream = await this.chat(this.getHistory());
-        const reasoning_content_subject: Subject<string> = new Subject();
-        const content_subject: Subject<string> = new Subject();
-        const tool_calls_subject: Subject<SiliconflowChatFunctionCall> =
-          new Subject();
-        reasoning_content_subject
-          .pipe(tap((r) => process.stdout.write(r)))
-          .subscribe();
+        const json = JSON.parse(eventData);
+        const delta = json.choices[0]?.delta || {};
 
-        content_subject.pipe(tap((r) => process.stdout.write(r))).subscribe();
-        content_subject
-          .pipe(
-            toArray(),
-            map((its) => its.flat().join("")),
-            tap((msg) => this.addMessage("assistant", msg))
-          )
-          .subscribe();
-        // tool call
-        tool_calls_subject
-          .pipe(
-            toArray(),
-            switchMap((calls) => {
-              const function_calls = calls.flat().flat();
-              const functions: Map<string, SiliconflowChatFunctionCall> =
-                new Map();
-              function_calls.map((it) => {
-                const fun = functions.get(it.id);
-                if (fun) {
-                  if (it.function) {
-                    if (it.function.name) {
-                      fun.function.name = it.function.name;
-                    }
-                    if (it.function.arguments) {
-                      fun.function.arguments = it.function.arguments;
-                    }
-                  }
-                } else {
-                  functions.set(it.id, it);
-                }
-              });
-              return from(functions.values());
-            }),
-            concatMap((it) => {
-              return from(runFunctionTool(it));
-            }),
-            map((it) => {
-              if (it) {
-                this.addMessage(`tool`, JSON.stringify(it.content), it.id);
-              }
-              return it;
-            })
-          )
-          .subscribe();
-        aiResponse.on("data", (chunk) => {
-          const chunkStr = chunk.toString();
-          const lines = chunkStr
-            .split("\n")
-            .filter((line) => line.trim() !== "");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const eventData = line.substring(6);
-              if (eventData === "[DONE]") {
-                return;
-              }
-              try {
-                const json = JSON.parse(eventData);
-                const reasoning_content =
-                  json.choices[0]?.delta?.reasoning_content;
-                if (reasoning_content) {
-                  reasoning_content_subject.next(reasoning_content);
-                }
-                const content = json.choices[0]?.delta?.content;
-                if (content) {
-                  content_subject.next(content);
-                }
-                const tool_calls = json.choices[0]?.delta?.tool_calls;
-                if (tool_calls) {
-                  tool_calls_subject.next(tool_calls);
-                }
-              } catch (err) {
-                console.error("\nError parsing JSON:", err);
-              }
-            }
-          }
+        subject.next({
+          reasoning_content: delta.reasoning_content,
+          content: delta.content,
+          tool_calls: delta.tool_calls,
         });
-        aiResponse.on("end", () => {
-          reasoning_content_subject.complete();
-          content_subject.complete();
-          tool_calls_subject.complete();
-          console.log("\n");
-          rl.resume();
-          rl.prompt();
-        });
-        aiResponse.on("error", (err) => {
-          reasoning_content_subject.error(err);
-          content_subject.error(err);
-          tool_calls_subject.error(err);
-          rl.resume();
-          rl.prompt();
-        });
-      } catch (error) {
-        console.error("\nError:", (error as Error).message);
-        rl.resume();
-        rl.prompt();
+      } catch (err) {
+        console.error("\nError parsing JSON:", err);
       }
-    }).on("close", () => {
-      console.log("\n聊天会话已结束\n");
-      process.exit(0);
-    });
+    }
+  }
+  private createPipelines(eventSubject: Subject<any>) {
+    const reasoning$ = eventSubject.pipe(
+      filter((e) => e.reasoning_content !== undefined),
+      map((e) => e.reasoning_content)
+    );
+
+    const content$ = eventSubject.pipe(
+      filter((e) => e.content !== undefined),
+      map((e) => e.content)
+    );
+
+    const toolCalls$ = eventSubject.pipe(
+      filter((e) => e.tool_calls !== undefined),
+      map((e) => e.tool_calls)
+    );
+
+    return { reasoning$, content$, toolCalls$ };
+  }
+
+  private processContent(content$: Observable<string>) {
+    return content$.pipe(
+      toArray(),
+      map((chunks) => chunks.join("")),
+      tap((fullMessage) => this.addMessage("assistant", fullMessage))
+    );
+  }
+
+  private writeToStdout(data: string) {
+    if (data) process.stdout.write(data);
+  }
+
+  private processToolCalls(
+    toolCalls$: Observable<SiliconflowChatFunctionCall[]>
+  ) {
+    return toolCalls$.pipe(
+      toArray(),
+      map((allCalls) => allCalls.flat()),
+      switchMap((calls) => {
+        const functionMap = new Map<string, SiliconflowChatFunctionCall>();
+
+        calls
+          .flat()
+          .flat()
+          .forEach((tc: SiliconflowChatFunctionCall) => {
+            const existing = functionMap.get(tc.id) || tc;
+            if (tc.function?.name) existing.function.name = tc.function.name;
+            if (tc.function?.arguments)
+              existing.function.arguments += tc.function.arguments;
+            functionMap.set(tc.id, existing);
+          });
+
+        return from(Array.from(functionMap.values()));
+      }),
+      concatMap((toolCall) => runFunctionTool(toolCall)),
+      toArray(),
+      switchMap((results) => {
+        const allResults = results.filter((it) => !!it);
+        if (allResults.length > 0) {
+          allResults.forEach((res) => {
+            this.addMessage("tool", JSON.stringify(res.content), res.id);
+          });
+          return this.chatContinue();
+        }
+        return of(null);
+      })
+    );
+  }
+
+  chatContinue(): Observable<any> {
+    return from(this.chat(this.getHistory())).pipe(
+      switchMap((aiResponse: ReadStream) => {
+        const eventSubject = new Subject<{
+          reasoning_content?: string;
+          content?: string;
+          tool_calls?: SiliconflowChatFunctionCall[];
+        }>();
+
+        aiResponse.on("data", (chunk) =>
+          this.processChunk(chunk, eventSubject)
+        );
+        aiResponse.on("end", () => eventSubject.complete());
+        aiResponse.on("error", (err) => eventSubject.error(err));
+
+        const { reasoning$, content$, toolCalls$ } =
+          this.createPipelines(eventSubject);
+
+        // 创建内容处理管道（不再忽略元素）
+        const contentProcessing$ = this.processContent(content$).pipe(
+          map((fullMessage) => ({ type: "content", message: fullMessage }))
+        );
+
+        // 创建工具调用处理管道（不再忽略元素）
+        const toolCallsProcessing$ = this.processToolCalls(toolCalls$).pipe(
+          map((results) => ({ type: "tool_calls", results }))
+        );
+
+        // 合并所有流并添加完成标记
+        return merge(
+          reasoning$.pipe(tap((it) => this.writeToStdout(it))),
+          content$.pipe(tap((it) => this.writeToStdout(it))),
+          contentProcessing$,
+          toolCallsProcessing$
+        ).pipe(
+          // 添加完成标记确保至少有一个值
+          endWith({ type: "complete" })
+        );
+      })
+    );
   }
 }
