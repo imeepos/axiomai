@@ -1,0 +1,7 @@
+{
+    "name": "@axiomai/utils",
+    "main": "src/index.ts",
+    "dependencies": {
+        "tsyringe": "^4.10.0"
+    }
+}

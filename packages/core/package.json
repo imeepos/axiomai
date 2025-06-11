@@ -1,0 +1,12 @@
+{
+    "name": "@axiomai/core",
+    "main": "src/index.ts",
+    "dependencies": {
+        "@axiomai/utils": "workspace:*",
+        "axios": "^1.9.0",
+        "class-validator": "^0.14.2",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.2",
+        "tsyringe": "^4.10.0"
+    }
+}
