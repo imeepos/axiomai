@@ -22,10 +22,16 @@ export const tryResolve = <T>(
   }
 };
 
-export const tryJsonParse = <T>(str: string) => {
+export const tryJsonParse = <T>(str: string): T => {
   try {
-    return JSON.parse(str);
+    if (typeof str === "string") {
+      return tryJsonParse(JSON.parse(str));
+    }
+    if (typeof str === "object") {
+      return str as T;
+    }
+    throw new Error(`JSON解析失败，不支持类型${typeof str}`);
   } catch (e) {
-    return null;
+    throw e;
   }
 };

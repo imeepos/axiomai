@@ -5,7 +5,6 @@ config();
 import {
   container,
   WORKSPACE_ROOT,
-  SiliconflowChat,
   SiliconflowChatCli,
 } from "@axiomai/core";
 

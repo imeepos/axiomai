@@ -12,9 +12,18 @@ export class WriteFile implements Tool<{ success: boolean; message: string }> {
   content: string;
 
   async run() {
-    if (!this.filePath) throw new Error(`文件路径不能为空`);
-    if (!this.content) throw new Error(`文件内容不能为空`);
-    writeFileSync(this.filePath, this.content, "utf-8");
-    return { success: true, message: `操作成功` };
+    try {
+      if (!this.filePath) throw new Error(`文件路径不能为空`);
+      if (!this.content) throw new Error(`文件内容不能为空`);
+      writeFileSync(this.filePath, this.content, "utf-8");
+      return { success: true, message: `写入文件${this.filePath}成功` };
+    } catch (e) {
+      return {
+        success: false,
+        message: `写入文件${this.filePath}失败，原因如下：${
+          (e as Error).message
+        }`,
+      };
+    }
   }
 }

@@ -61,6 +61,11 @@ export function createTools() {
   return tools.map((tool) => toolMetadataToAiTool(tool));
 }
 
+export function getAllToolsDescription() {
+  const tools = resolveAll(TOOL_TOKEN);
+  return "[" + tools.map((tool) => tool.options.name).join(",") + "]";
+}
+
 export interface AiFunctionParameters {
   type?: string;
   description?: string;
@@ -115,6 +120,10 @@ export interface FunctionCall {
   function: { name: string; arguments: string };
 }
 export async function runFunctionTool(fun: FunctionCall) {
+  console.log(
+    `调用工具:${fun.function.name} 参数：${typeof fun.function.arguments}`,
+    fun.function
+  );
   const tools = resolveAll(TOOL_TOKEN);
   const tool = tools.find((tool) => tool.options.name === fun.function.name);
   if (tool) {

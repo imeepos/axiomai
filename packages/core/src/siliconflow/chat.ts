@@ -1,6 +1,6 @@
-import { injectable } from "tsyringe";
+import { container, injectable } from "tsyringe";
 import { Siliconflow } from "./siliconflow";
-import { ReadStream } from "fs";
+import { createWriteStream, ReadStream } from "fs";
 import * as fs from "fs/promises"; // 添加文件系统模块
 import * as path from "path"; // 添加路径处理模块
 import { tryResolve } from "@axiomai/utils";
@@ -14,6 +14,7 @@ import {
   merge,
   Observable,
   of,
+  race,
   Subject,
   tap,
 } from "rxjs";
@@ -22,7 +23,10 @@ import {
   endWith,
   filter,
   map,
+  startWith,
   switchMap,
+  takeUntil,
+  takeWhile,
   toArray,
 } from "rxjs/operators";
 export interface SiliconflowChatMessage {
@@ -105,9 +109,9 @@ export class SiliconflowChat {
   private processChunk(
     chunk: Buffer | string,
     subject: Subject<{
-      reasoning_content?: string;
-      content?: string;
-      tool_calls?: SiliconflowChatFunctionCall[];
+      reasoning_content: string | null;
+      content: string | null;
+      tool_calls: SiliconflowChatFunctionCall[] | null;
     }>
   ) {
     const chunkStr = chunk.toString();
@@ -124,92 +128,57 @@ export class SiliconflowChat {
         const delta = json.choices[0]?.delta || {};
 
         subject.next({
-          reasoning_content: delta.reasoning_content,
-          content: delta.content,
-          tool_calls: delta.tool_calls,
+          reasoning_content: delta.reasoning_content || null,
+          content: delta.content || null,
+          tool_calls: delta.tool_calls || null,
         });
       } catch (err) {
         console.error("\nError parsing JSON:", err);
       }
     }
   }
-  private createPipelines(eventSubject: Subject<any>) {
-    const reasoning$ = eventSubject.pipe(
-      filter((e) => e.reasoning_content !== undefined),
-      map((e) => e.reasoning_content)
-    );
-
+  private createPipelines(
+    eventSubject: Subject<{
+      reasoning_content: string | null;
+      content: string | null;
+      tool_calls: SiliconflowChatFunctionCall[] | null;
+    }>
+  ) {
     const content$ = eventSubject.pipe(
-      filter((e) => e.content !== undefined),
-      map((e) => e.content)
+      filter((e) => e.content !== null),
+      map((e) => e.content!)
     );
 
     const toolCalls$ = eventSubject.pipe(
-      filter((e) => e.tool_calls !== undefined),
-      map((e) => e.tool_calls)
+      filter((e) => e.tool_calls !== null),
+      map((e) => e.tool_calls!)
+    );
+
+    const reasoning$ = eventSubject.pipe(
+      filter((e) => e.reasoning_content !== null),
+      map((e) => e.reasoning_content!)
     );
 
     return { reasoning$, content$, toolCalls$ };
-  }
-
-  private processContent(content$: Observable<string>) {
-    return content$.pipe(
-      toArray(),
-      map((chunks) => chunks.join("")),
-      tap((fullMessage) => this.addMessage("assistant", fullMessage))
-    );
   }
 
   private writeToStdout(data: string) {
     if (data) process.stdout.write(data);
   }
 
-  private processToolCalls(
-    toolCalls$: Observable<SiliconflowChatFunctionCall[]>
-  ) {
-    return toolCalls$.pipe(
-      toArray(),
-      map((allCalls) => allCalls.flat()),
-      switchMap((calls) => {
-        const functionMap = new Map<string, SiliconflowChatFunctionCall>();
-
-        calls
-          .flat()
-          .flat()
-          .forEach((tc: SiliconflowChatFunctionCall) => {
-            const existing = functionMap.get(tc.id) || tc;
-            if (tc.function?.name) existing.function.name = tc.function.name;
-            if (tc.function?.arguments)
-              existing.function.arguments += tc.function.arguments;
-            functionMap.set(tc.id, existing);
-          });
-
-        return from(Array.from(functionMap.values()));
-      }),
-      concatMap((toolCall) => runFunctionTool(toolCall)),
-      toArray(),
-      switchMap((results) => {
-        const allResults = results.filter((it) => !!it);
-        if (allResults.length > 0) {
-          allResults.forEach((res) => {
-            this.addMessage("tool", JSON.stringify(res.content), res.id);
-          });
-          return this.chatContinue();
-        }
-        return of(null);
-      })
-    );
-  }
-
   chatContinue(): Observable<any> {
     return from(this.chat(this.getHistory())).pipe(
       switchMap((aiResponse: ReadStream) => {
         const eventSubject = new Subject<{
-          reasoning_content?: string;
-          content?: string;
-          tool_calls?: SiliconflowChatFunctionCall[];
+          reasoning_content: string | null;
+          content: string | null;
+          tool_calls: SiliconflowChatFunctionCall[] | null;
         }>();
-
+        const root = container.resolve(WORKSPACE_ROOT);
+        const writeStream = createWriteStream(
+          path.join(root, `logs/runtime_${Date.now()}.md`)
+        );
+        aiResponse.pipe(writeStream);
         aiResponse.on("data", (chunk) =>
           this.processChunk(chunk, eventSubject)
         );
@@ -219,26 +188,59 @@ export class SiliconflowChat {
         const { reasoning$, content$, toolCalls$ } =
           this.createPipelines(eventSubject);
 
-        // 创建内容处理管道（不再忽略元素）
-        const contentProcessing$ = this.processContent(content$).pipe(
-          map((fullMessage) => ({ type: "content", message: fullMessage }))
+        // 1. 首先处理推理内容（带标记）
+        const reasoningPipeline$ = reasoning$.pipe(
+          tap((it) => this.writeToStdout(it))
         );
 
-        // 创建工具调用处理管道（不再忽略元素）
-        const toolCallsProcessing$ = this.processToolCalls(toolCalls$).pipe(
-          map((results) => ({ type: "tool_calls", results }))
+        // 2. 然后处理响应内容（带标记）
+        const contentPipeline$ = content$.pipe(
+          tap((it) => this.writeToStdout(it))
         );
 
-        // 合并所有流并添加完成标记
-        return merge(
-          reasoning$.pipe(tap((it) => this.writeToStdout(it))),
-          content$.pipe(tap((it) => this.writeToStdout(it))),
-          contentProcessing$,
-          toolCallsProcessing$
-        ).pipe(
-          // 添加完成标记确保至少有一个值
-          endWith({ type: "complete" })
+        const contentAddMessage$ = content$.pipe(
+          toArray(),
+          map((chunks) => chunks.join("")),
+          tap((fullMessage) => this.addMessage("assistant", fullMessage))
         );
+
+        const step1$ = merge(
+          reasoningPipeline$,
+          contentPipeline$,
+          contentAddMessage$
+        );
+
+        // 3. 最后处理工具调用（确保在内容处理之后）
+        const toolCallsPipeline$ = toolCalls$.pipe(
+          toArray(),
+          map((allCalls) => allCalls.flat()),
+          switchMap((calls) => {
+            const functionMap = new Map<string, SiliconflowChatFunctionCall>();
+            calls.forEach((tc) => {
+              const existing = functionMap.get(tc.id) || tc;
+              if (tc.function?.name) existing.function.name = tc.function.name;
+              if (tc.function?.arguments)
+                existing.function.arguments += tc.function.arguments;
+              functionMap.set(tc.id, existing);
+            });
+            const tool_calls = [...functionMap.values()];
+            return from(
+              Promise.all(tool_calls.map((tool) => runFunctionTool(tool)))
+            );
+          }),
+          switchMap((results) => {
+            const allResults = results.filter((it) => !!it);
+            if (results.length > 0) {
+              allResults.forEach((res) => {
+                this.addMessage("tool", JSON.stringify(res.content), res.id);
+              });
+              return this.chatContinue();
+            }
+            return of(null);
+          })
+        );
+        // 按顺序连接所有管道
+        return merge(step1$, toolCallsPipeline$);
       })
     );
   }

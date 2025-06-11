@@ -13,7 +13,16 @@ export class ReadFile implements Tool<FileContent[]> {
   filePath: string;
 
   async run() {
-    const content = readFileSync(this.filePath, "utf-8");
-    return [{ filePath: this.filePath, content: content }];
+    try {
+      const content = readFileSync(this.filePath, "utf-8");
+      return [{ filePath: this.filePath, content: content }];
+    } catch (e) {
+      return [
+        {
+          filePath: this.filePath,
+          content: `读取文件内容失败，失败原因如下：${(e as Error).message}`,
+        },
+      ];
+    }
   }
 }
