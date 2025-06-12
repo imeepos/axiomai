@@ -1,0 +1,4 @@
+{
+    "name": "@axiomai/m3u8",
+    "main": "src/index.ts"
+}
