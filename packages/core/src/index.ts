@@ -2,4 +2,5 @@ export * from "tsyringe";
 export * from "./siliconflow";
 export * from "./tokens";
 export * from "./types";
-export * from "./decorator";
+export * from "./decorators";
+export * from "./mcp";

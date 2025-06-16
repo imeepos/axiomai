@@ -64,7 +64,7 @@ export class SiliconflowChatCli {
             ? command.substring(SAVE_CMD.length).trim()
             : undefined;
         await this.handleSave(filename);
-        rl.prompt()
+        rl.prompt();
         return;
       }
 

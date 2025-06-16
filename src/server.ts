@@ -5,12 +5,14 @@ config();
 import {
   container,
   WORKSPACE_ROOT,
-  SiliconflowChatCli,
   Tool,
   Params,
-  createMcpClient,
+  createMcpServer,
+  injectable,
 } from "@axiomai/core";
 import { z } from "zod";
+
+@injectable()
 export class Demo {
   @Tool()
   demo(@Params(z.number()) a: number) {
@@ -21,14 +23,7 @@ export class Demo {
 container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
 
 async function main() {
-  const client = await createMcpClient();
-  // const prompts = await client.listPrompts();
-  // const resources = await client.listResources();
-  // const resourceTemplates = await client.listResourceTemplates();
-  const tools = await client.listTools();
-  console.log({ tools: JSON.stringify(tools, null, 2) });
-  const chat = container.resolve(SiliconflowChatCli);
-  await chat.start();
+  await createMcpServer(container);
 }
 
 main().catch((e) => {
