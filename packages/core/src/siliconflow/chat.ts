@@ -3,32 +3,14 @@ import { Siliconflow } from "./siliconflow";
 import { createWriteStream, ReadStream } from "fs";
 import * as fs from "fs/promises"; // 添加文件系统模块
 import * as path from "path"; // 添加路径处理模块
-import { tryResolve } from "@axiomai/utils";
+import { tryJsonParse, tryResolve } from "@axiomai/utils";
 import { WORKSPACE_ROOT } from "../tokens";
 import "../tools/index";
-import { createTools, runFunctionTool } from "../decorator";
-import {
-  concat,
-  from,
-  lastValueFrom,
-  merge,
-  Observable,
-  of,
-  race,
-  Subject,
-  tap,
-} from "rxjs";
-import {
-  concatMap,
-  endWith,
-  filter,
-  map,
-  startWith,
-  switchMap,
-  takeUntil,
-  takeWhile,
-  toArray,
-} from "rxjs/operators";
+import { from, merge, Observable, of, Subject, tap } from "rxjs";
+import { filter, map, switchMap, toArray } from "rxjs/operators";
+import { AiTool, createMcpClient, createMcpTools } from "../mcp";
+import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { AxiosInstance } from "axios";
 export interface SiliconflowChatMessage {
   role: string;
   content: string;
@@ -43,11 +25,24 @@ export interface SiliconflowChatFunctionCall {
 @injectable()
 export class SiliconflowChat {
   private conversationHistory: SiliconflowChatMessage[] = [];
+  private mcp: Client;
+  private tools: AiTool[];
+  private client: AxiosInstance;
   constructor(private siliconflow: Siliconflow) {}
 
+  async onInit() {
+    if (!this.mcp) {
+      this.mcp = await createMcpClient();
+      this.tools = await createMcpTools(this.mcp);
+    }
+    if (!this.client) {
+      this.client = this.siliconflow.create();
+    }
+  }
+
   async chat(messages: SiliconflowChatMessage[]) {
-    const client = this.siliconflow.create();
-    const response = await client.request({
+    await this.onInit();
+    const response = await this.client.request({
       url: `chat/completions`,
       method: `post`,
       responseType: "stream",
@@ -55,9 +50,9 @@ export class SiliconflowChat {
         model: `Pro/deepseek-ai/DeepSeek-R1`,
         messages: messages,
         max_token: 16384,
-        temperature: 0.7,
+        temperature: 0.3,
         stream: true,
-        tools: createTools(),
+        tools: this.tools,
       },
     });
     return response.data;
@@ -224,15 +219,24 @@ export class SiliconflowChat {
               functionMap.set(tc.id, existing);
             });
             const tool_calls = [...functionMap.values()];
+
             return from(
-              Promise.all(tool_calls.map((tool) => runFunctionTool(tool)))
+              Promise.all(
+                tool_calls.map(async (tool) => {
+                  const result = await this.mcp.callTool({
+                    name: tool.function.name,
+                    arguments: tryJsonParse(tool.function.arguments),
+                  });
+                  return { result, id: tool.id };
+                })
+              )
             );
           }),
           switchMap((results) => {
             const allResults = results.filter((it) => !!it);
             if (results.length > 0) {
               allResults.forEach((res) => {
-                this.addMessage("tool", JSON.stringify(res.content), res.id);
+                this.addMessage("tool", JSON.stringify(res.result), res.id);
               });
               return this.chatContinue();
             }

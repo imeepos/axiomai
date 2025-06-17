@@ -4,7 +4,6 @@ import { lastValueFrom } from "rxjs";
 import { WORKSPACE_ROOT } from "../tokens";
 import { tryResolve } from "@axiomai/utils";
 import { SiliconflowChat } from "./chat";
-import { getAllToolsDescription } from "../decorator";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -31,10 +30,7 @@ export class SiliconflowChatCli {
     );
 
     const currentTime = new Date().toLocaleString("zh-CN");
-    const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace(
-      "{{tools}}",
-      getAllToolsDescription()
-    )
+    const systemPrompt = SYSTEM_PROMPT_TEMPLATE
       .replace("{{root}}", root)
       .replace("{{currentTime}}", currentTime);
 

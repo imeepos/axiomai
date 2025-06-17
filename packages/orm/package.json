@@ -1,7 +1,0 @@
-{
-    "name": "@axiomai/orm",
-    "main": "src/index.ts",
-    "dependencies": {
-        "prisma": "^6.9.0"
-    }
-}

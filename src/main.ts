@@ -2,31 +2,11 @@ import "reflect-metadata";
 import { config } from "dotenv";
 config();
 
-import {
-  container,
-  WORKSPACE_ROOT,
-  SiliconflowChatCli,
-  Tool,
-  Params,
-  createMcpClient,
-} from "@axiomai/core";
-import { z } from "zod";
-export class Demo {
-  @Tool()
-  demo(@Params(z.number()) a: number) {
-    return a;
-  }
-}
+import { container, WORKSPACE_ROOT, SiliconflowChatCli } from "@axiomai/core";
 
 container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
 
 async function main() {
-  const client = await createMcpClient();
-  // const prompts = await client.listPrompts();
-  // const resources = await client.listResources();
-  // const resourceTemplates = await client.listResourceTemplates();
-  const tools = await client.listTools();
-  console.log({ tools: JSON.stringify(tools, null, 2) });
   const chat = container.resolve(SiliconflowChatCli);
   await chat.start();
 }

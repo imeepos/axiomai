@@ -11,32 +11,35 @@ export interface ParamsMetadata {
   propertyKey: string | symbol;
   paramterIndex: number;
   zod: ZodTypeAny;
+  name: string;
 }
 export const PARAMS_TOKENS: InjectionToken<ParamsMetadata> =
   Symbol.for(`PARAMS_TOKENS`);
-export const Params = (zod: ZodTypeAny): ParameterDecorator => {
+export const Params = (name: string, zod: ZodTypeAny): ParameterDecorator => {
   return (target, propertyKey, paramterIndex) => {
     container.register(PARAMS_TOKENS, {
-      useValue: { target: target.constructor, propertyKey, paramterIndex, zod },
+      useValue: {
+        target: target.constructor,
+        propertyKey,
+        paramterIndex,
+        zod,
+        name,
+      },
     });
   };
 };
 
-export function getParams(target: any, propertyKey: string | symbol) {
+export function getParams(target: any, propertyKey: string | symbol = `run`) {
   const params = resolveAll<ParamsMetadata>(PARAMS_TOKENS);
   return params.filter(
     (p) => p.target === target && p.propertyKey === propertyKey
   );
 }
 
-export function getParamsZod(
-  target: any,
-  propertyKey: string | symbol = "run"
-) {
-  const params = getParams(target, propertyKey);
+export function getParamsZod(params: ParamsMetadata[]) {
   const obj: ZodRawShape = {};
   params.map((p) => {
-    Reflect.set(obj, p.propertyKey, p.zod);
+    Reflect.set(obj, p.name, p.zod);
   });
   return obj;
 }
