@@ -1,3 +1,4 @@
+import { CreateDateColumn, DeleteDateColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Entity } from '../../decorators';
 
 /**
@@ -6,4 +7,16 @@ import { Entity } from '../../decorators';
 @Entity({
   name: 'cogni_archive_usage_logs',
 })
-export class UsageLogs {}
+export class UsageLogs {
+  @PrimaryGeneratedColumn('uuid', { comment: '知识ID' })
+  id: string;
+
+  @CreateDateColumn()
+  create_date: Date;
+
+  @UpdateDateColumn()
+  update_date: Date;
+
+  @DeleteDateColumn()
+  delete_date: Date;
+}

@@ -1,23 +1,25 @@
 import { Column, CreateDateColumn, DeleteDateColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { Entity } from '../decorators';
+import { Entity } from '../../decorators';
 
-@Entity({ name: 'ai_role' })
-export class AiRole {
-  @PrimaryGeneratedColumn('uuid', {})
+/**
+ * 知识分类
+ */
+@Entity({
+  name: 'cogni_archive_category',
+})
+export class CogniArchiveCategory {
+  @PrimaryGeneratedColumn('uuid', { comment: '知识ID' })
   id: string;
 
   @Column({
     type: 'varchar',
   })
-  name: string;
+  category_title: string;
 
   @Column({
     type: 'varchar',
   })
-  description: string;
-
-  @Column({ type: 'json' })
-  prompts: any;
+  category_title_en: string;
 
   @CreateDateColumn()
   create_date: Date;

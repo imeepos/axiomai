@@ -1,14 +1,11 @@
 import { CreateDateColumn, DeleteDateColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Entity } from '../../decorators';
 
-/**
- * 知识库
- */
 @Entity({
-  name: 'cogni_archive',
+  name: 'file_system',
 })
-export class CogniArchive {
-  @PrimaryGeneratedColumn('uuid', { comment: '知识ID' })
+export class FileSystem {
+  @PrimaryGeneratedColumn('uuid', {})
   id: string;
 
   @CreateDateColumn()
