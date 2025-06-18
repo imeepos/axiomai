@@ -1,0 +1,177 @@
+{
+  "version": "0.0.1",
+  "initialized": "2025-06-18T10:09:49.556Z",
+  "defaultFormat": "human",
+  "stateHistory": [
+    {
+      "from": "initial",
+      "command": "init",
+      "timestamp": "2025-06-18T10:09:49.555Z",
+      "args": []
+    },
+    {
+      "from": "initialized",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:09:54.920Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "recall",
+      "timestamp": "2025-06-18T10:11:59.931Z",
+      "args": []
+    },
+    {
+      "from": "recall-waiting",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:12:35.259Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "action",
+      "timestamp": "2025-06-18T10:13:09.638Z",
+      "args": [
+        "frontend-developer"
+      ]
+    },
+    {
+      "from": "action_plan_generated",
+      "command": "learn",
+      "timestamp": "2025-06-18T10:13:18.337Z",
+      "args": [
+        "role://frontend-developer"
+      ]
+    },
+    {
+      "from": "learned_role",
+      "command": "action",
+      "timestamp": "2025-06-18T10:14:13.025Z",
+      "args": [
+        "frontend-developer"
+      ]
+    },
+    {
+      "from": "action_plan_generated",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:15:02.776Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "action",
+      "timestamp": "2025-06-18T10:15:19.870Z",
+      "args": [
+        "role-designer"
+      ]
+    },
+    {
+      "from": "action_plan_generated",
+      "command": "learn",
+      "timestamp": "2025-06-18T10:15:41.785Z",
+      "args": [
+        "role://role-designer"
+      ]
+    },
+    {
+      "from": "learned_role",
+      "command": "action",
+      "timestamp": "2025-06-18T10:16:48.048Z",
+      "args": [
+        "role-designer"
+      ]
+    },
+    {
+      "from": "action_plan_generated",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:29:03.231Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "init",
+      "timestamp": "2025-06-18T10:29:10.997Z",
+      "args": []
+    },
+    {
+      "from": "initialized",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:29:12.167Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "init",
+      "timestamp": "2025-06-18T10:29:27.907Z",
+      "args": []
+    },
+    {
+      "from": "initialized",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:29:44.036Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:30:31.492Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "action",
+      "timestamp": "2025-06-18T10:31:21.216Z",
+      "args": [
+        "typescript-development"
+      ]
+    },
+    {
+      "from": "action_plan_generated",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:33:14.717Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "init",
+      "timestamp": "2025-06-18T10:33:20.920Z",
+      "args": []
+    },
+    {
+      "from": "initialized",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:33:22.004Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "init",
+      "timestamp": "2025-06-18T10:33:53.370Z",
+      "args": []
+    },
+    {
+      "from": "initialized",
+      "command": "hello",
+      "timestamp": "2025-06-18T10:33:54.439Z",
+      "args": []
+    },
+    {
+      "from": "role_discovery",
+      "command": "learn",
+      "timestamp": "2025-06-18T10:34:20.548Z",
+      "args": [
+        "scrum"
+      ]
+    },
+    {
+      "from": "learn_error",
+      "command": "learn",
+      "timestamp": "2025-06-18T10:34:55.194Z",
+      "args": [
+        "memory://demo"
+      ]
+    }
+  ],
+  "currentState": "learned_memory",
+  "lastUpdated": "2025-06-18T10:34:55.197Z"
+}

@@ -8,3 +8,5 @@ export * from './orm';
 export * from './entities';
 export * from './CoreModule';
 export * from './env';
+export * from './commands/index';
+export * from './logger';
