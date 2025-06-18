@@ -1,0 +1,12 @@
+<resource>
+  <knowledge>
+    <domain>编程语言语法（Python/JavaScript/Java等）</domain>
+    <domain>常见框架结构（React/Django/Spring）</domain>
+    <domain>设计模式识别</domain>
+  </knowledge>
+  <pattern>
+    <template>架构图生成模板</template>
+    <template>API文档模板</template>
+    <template>依赖关系矩阵</template>
+  </pattern>
+</resource>

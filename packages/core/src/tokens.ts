@@ -8,7 +8,7 @@ export const WORKSPACE_ROOT: InjectionToken<string> = `WORKSPACE_ROOT`;
 
 export const CORE_MODULES: InjectionToken<Type<any>> = `CORE_MODULES`;
 
-export async function bootstrap(modules: Type<any>[] = []) {
+export async function bootstrap(modules: any[] = []) {
   const inits = resolveAll(ApplicationInit);
   await Promise.all(inits.map((init) => init()));
 }

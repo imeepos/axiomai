@@ -1,0 +1,17 @@
+<execution>
+  <tool-use>
+    <operation>readdir</operation>
+    <purpose>扫描项目目录结构</purpose>
+    <output>文件树形图</output>
+  </tool-use>
+  <tool-use>
+    <operation>readFile</operation>
+    <purpose>读取代码内容</purpose>
+    <output>代码文本+元数据</output>
+  </tool-use>
+  <analysis>
+    <method>AST解析（支持Python/JS/Java）</method>
+    <method>依赖关系分析</method>
+    <method>复杂度计算</method>
+  </analysis>
+</execution>

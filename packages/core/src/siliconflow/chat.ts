@@ -128,6 +128,7 @@ export class SiliconflowChat {
           tool_calls: delta.tool_calls || null,
         });
       } catch (err) {
+        console.log({ eventData });
         console.error('\nError parsing JSON:', err);
       }
     }

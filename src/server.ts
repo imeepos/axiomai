@@ -2,18 +2,16 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 config();
 
-import { container, WORKSPACE_ROOT, createMcpServer } from '@axiomai/core';
+import { container, createMcpServer, bootstrap, CoreModule, Env } from '@axiomai/core';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-
 import express from 'express';
-container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
 
 async function main() {
+  await bootstrap([CoreModule]);
   const app = express();
   app.use(express.json());
   const server = await createMcpServer(container);
-
   const transports = {
     streamable: {} as Record<string, StreamableHTTPServerTransport>,
     sse: {} as Record<string, SSEServerTransport>,
@@ -45,9 +43,11 @@ async function main() {
       res.status(400).send('No transport found for sessionId');
     }
   });
-
-  app.listen(8989, '0.0.0.0', () => {
-    console.log(`http://localhost:8989`);
+  const env = container.resolve(Env);
+  const port = parseInt(env.get(`MCP_PORT`) || `8989`);
+  const host = env.get(`MCP_HOST`) || `localhost`;
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`http://${host}:8989`);
   });
 }
 
