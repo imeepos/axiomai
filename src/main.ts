@@ -1,8 +1,8 @@
-import "reflect-metadata";
-import { config } from "dotenv";
+import 'reflect-metadata';
+import { config } from 'dotenv';
 config();
 
-import { container, WORKSPACE_ROOT, SiliconflowChatCli } from "@axiomai/core";
+import { container, WORKSPACE_ROOT, SiliconflowChatCli } from '@axiomai/core';
 
 container.register(WORKSPACE_ROOT, { useValue: process.cwd() });
 
@@ -12,7 +12,7 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("Application failed:", {
+  console.error('Application failed:', {
     message: e.message,
     stack: e.stack,
     timestamp: new Date().toISOString(),

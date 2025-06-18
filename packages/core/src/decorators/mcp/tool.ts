@@ -1,12 +1,8 @@
-import { container, injectable, InjectionToken } from "tsyringe";
-import { Type } from "../../types";
-import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type {
-  ServerRequest,
-  ServerNotification,
-  CallToolResult,
-} from "@modelcontextprotocol/sdk/types.js";
+import { container, injectable, InjectionToken } from 'tsyringe';
+import { Type } from '../../types';
+import type { ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { ServerRequest, ServerNotification, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 /**
  * tool
  */
@@ -39,20 +35,14 @@ export interface ToolMethodMetadata {
 export function isToolMethodMetadata(val: any): val is ToolMethodMetadata {
   return val && val.descriptor;
 }
-export type ToolMetadata =
-  | ToolClassMetadata
-  | ToolPropertyMetadata
-  | ToolMethodMetadata;
+export type ToolMetadata = ToolClassMetadata | ToolPropertyMetadata | ToolMethodMetadata;
 
-export const TOOL_TOKENS: InjectionToken<ToolMetadata> =
-  Symbol.for(`TOOL_TOKENS`);
+export const TOOL_TOKENS: InjectionToken<ToolMetadata> = Symbol.for(`TOOL_TOKENS`);
 export interface Tool {
   run: ToolCallback;
 }
 export class ITool implements Tool {
-  run: (
-    extra: RequestHandlerExtra<ServerRequest, ServerNotification>
-  ) => CallToolResult | Promise<CallToolResult>;
+  run: (extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => CallToolResult | Promise<CallToolResult>;
 }
 export function ToolClass(options: ToolOptions = {}): ClassDecorator {
   return (target: any) => {

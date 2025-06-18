@@ -1,14 +1,14 @@
-import { readFile } from 'fs/promises';
 import { Params, Tool } from '../decorators';
 import { injectable } from 'tsyringe';
 import { z } from 'zod';
+import { readdir } from 'fs/promises';
 @injectable()
-export class ReadFile {
+export class ReadDir {
   @Tool({
-    name: `readFile`,
-    description: `Asynchronously reads the entire contents of a file.`,
+    name: `readdir`,
+    description: `Reads the contents of a directory`,
   })
   async run(@Params(`filePath`, z.string()) filePath: string) {
-    return await readFile(filePath, 'utf-8');
+    return await readdir(filePath, 'utf-8');
   }
 }

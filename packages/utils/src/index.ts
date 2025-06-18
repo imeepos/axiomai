@@ -1,1 +1,1 @@
-export * from "./resolveAll";
+export * from './resolveAll';

@@ -1,5 +1,5 @@
-import { injectable, InjectionToken } from "tsyringe";
-import {} from "class-validator";
+import { injectable, InjectionToken } from 'tsyringe';
+import {} from 'class-validator';
 @injectable()
 export class Env {
   get(token: InjectionToken<string>): string {

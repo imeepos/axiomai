@@ -1,6 +1,6 @@
-import { resolveAll } from "@axiomai/utils";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { resolveAll } from '@axiomai/utils';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   getParams,
   getParamsZod,
@@ -8,8 +8,9 @@ import {
   isToolPropertyMetadata,
   TOOL_TOKENS,
   ToolMetadata,
-} from "../decorators";
-import { DependencyContainer } from "tsyringe";
+} from '../decorators';
+import { DependencyContainer } from 'tsyringe';
+import { McpOutputService } from './output';
 
 export async function createMcpServer(container: DependencyContainer) {
   const server = new McpServer({
@@ -25,13 +26,19 @@ export async function createMcpServer(container: DependencyContainer) {
     } else if (isToolMethodMetadata(tool)) {
       const params = getParams(tool.target, tool.propertyKey);
       const zod = getParamsZod(params);
-      server.tool(name || ``, description || ``, zod, (args: any, extra) => {
-        const _arguments = params
-          .sort((a, b) => a.paramterIndex - b.paramterIndex)
-          .map((p) => Reflect.get(args, p.name));
-        const instance = container.resolve(tool.target);
-        const method = Reflect.get(instance, tool.propertyKey || `run`);
-        return method.bind(instance)(..._arguments);
+      server.tool(name || ``, description || ``, zod, async (args: any, extra) => {
+        const output = container.resolve(McpOutputService);
+        try {
+          const _arguments = params
+            .sort((a, b) => a.paramterIndex - b.paramterIndex)
+            .map((p) => Reflect.get(args, p.name));
+          const instance = container.resolve(tool.target);
+          const method = Reflect.get(instance, tool.propertyKey || `run`);
+          const result = await method.bind(instance)(..._arguments);
+          return output.createSuccessResponse(result);
+        } catch (e) {
+          return output.createErrorResponse(e);
+        }
       });
     } else {
     }

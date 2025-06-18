@@ -1,5 +1,5 @@
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 export async function createMcpClient() {
   const client = new Client({ name: `@axiomai/core`, version: `1.0.0` });
